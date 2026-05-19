@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mocha Café Pomodoro v2 🍵</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Light mode (default) ── */
+    :root {
+      --bg:         #fdf6ec;
+      --card-bg:    #fffaf4;
+      --card-border:rgba(200,149,108,0.2);
+      --shadow:     rgba(107,66,38,0.15);
+
+      --brown-light:#c8956c;
+      --brown:      #9b6b47;
+      --brown-dark: #6b4226;
+
+      --sage:       #a8c5a0;
+      --sage-dark:  #7aaa6e;
+      --blush:      #f2b8c6;
+      --blush-dark: #e991ab;
+      --yellow:     #fde8a0;
+
+      --toggle-bg:  #f0e8df;
+      --toggle-inactive: var(--brown-light);
+      --ring-track: #f0e8df;
+      --mood-color: var(--brown);
+
+      --deco-opacity: 0.35;
+    }
+
+    /* ── Dark mode (night café) ── */
+    body.dark {
+      --bg:         #1a1a2e;
+      --card-bg:    #16213e;
+      --card-border:rgba(130,90,180,0.35);
+      --shadow:     rgba(0,0,0,0.45);
+
+      --brown-light:#c9a96e;
+      --brown:      #e2c27d;
+      --brown-dark: #f0d9a8;
+
+      --sage:       #4a7c6f;
+      --sage-dark:  #5ea08e;
+      --blush:      #9b6bb5;
+      --blush-dark: #c084d8;
+      --yellow:     #3d3520;
+
+      --toggle-bg:  #0f3460;
+      --toggle-inactive: #7b8db0;
+      --ring-track: #0f3460;
+      --mood-color: #c9a96e;
+
+      --deco-opacity: 0.22;
+    }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-x: hidden;
+      position: relative;
+      transition: background 0.4s ease;
+    }
+
+    /* ── Floating deco ── */
+    .deco {
+      position: fixed;
+      pointer-events: none;
+      font-size: 1.6rem;
+      opacity: var(--deco-opacity);
+      animation: float 6s ease-in-out infinite;
+      user-select: none;
+      transition: opacity 0.4s;
+    }
+    .deco:nth-child(1)  { top: 5%;  left: 4%;  animation-delay: 0s;   font-size: 2rem; }
+    .deco:nth-child(2)  { top: 12%; right: 6%; animation-delay: 1.2s; font-size: 1.4rem; }
+    .deco:nth-child(3)  { top: 50%; left: 2%;  animation-delay: 2s;   font-size: 1.8rem; }
+    .deco:nth-child(4)  { bottom: 10%; left: 7%;  animation-delay: 0.5s; }
+    .deco:nth-child(5)  { bottom: 6%;  right: 5%; animation-delay: 1.7s; font-size: 2rem; }
+    .deco:nth-child(6)  { top: 35%; right: 3%; animation-delay: 2.8s; font-size: 1.3rem; }
+    .deco:nth-child(7)  { bottom: 30%; left: 3%; animation-delay: 3.5s; font-size: 1.2rem; }
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(-5deg); }
+      50%       { transform: translateY(-12px) rotate(5deg); }
+    }
+
+    /* ── Dark-mode toggle button ── */
+    #dark-toggle {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      background: var(--blush);
+      border: 3px solid var(--blush-dark);
+      border-radius: 50px;
+      width: auto;
+      height: 40px;
+      padding: 0 14px;
+      font-size: 1rem;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 14px var(--shadow);
+      transition: all 0.3s ease;
+      z-index: 100;
+      color: var(--brown-dark);
+      white-space: nowrap;
+    }
+    #dark-toggle:hover { transform: scale(1.05); filter: brightness(1.05); }
+    body.dark #dark-toggle { background: #2e2b50; border-color: #a78bfa; color: #f0d9a8; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card-bg);
+      border-radius: 32px;
+      padding: 32px 36px 36px;
+      max-width: 440px;
+      width: 100%;
+      box-shadow:
+        0 8px 32px var(--shadow),
+        0 2px 8px rgba(200,149,108,0.12),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+      position: relative;
+      border: 2.5px solid var(--card-border);
+      transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .cafe-title {
+      font-size: 1.0rem;
+      font-weight: 700;
+      color: var(--brown-light);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .app-name {
+      font-size: 1.65rem;
+      font-weight: 900;
+      color: var(--brown-dark);
+      line-height: 1.1;
+    }
+
+    /* ── Character + speech bubble ── */
+    .character-wrap {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 16px;
+      position: relative;
+    }
+    .character-bubble {
+      background: var(--yellow);
+      border-radius: 50%;
+      width: 110px;
+      height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3.6rem;
+      box-shadow: 0 4px 18px rgba(200,149,108,0.25), 0 1px 4px rgba(200,149,108,0.15);
+      border: 3px solid rgba(253,232,160,0.5);
+      position: relative;
+      animation: bobble 3s ease-in-out infinite;
+      transition: background 0.4s;
+    }
+    @keyframes bobble {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50%       { transform: translateY(-6px) scale(1.04); }
+    }
+    .speech-bubble {
+      position: absolute;
+      top: -54px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--card-bg);
+      border: 2px solid var(--blush);
+      border-radius: 14px;
+      padding: 6px 14px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--brown-dark);
+      white-space: nowrap;
+      box-shadow: 0 2px 10px var(--shadow);
+      opacity: 0;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .speech-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -9px;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: var(--blush);
+    }
+    .speech-bubble.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-3px);
+    }
+
+    /* ── Presets ── */
+    .presets {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .preset-btn {
+      border: 2px solid var(--card-border);
+      border-radius: 14px;
+      background: var(--toggle-bg);
+      color: var(--brown);
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 800;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+      line-height: 1.3;
+    }
+    .preset-btn:hover:not(:disabled) {
+      background: var(--blush);
+      color: var(--brown-dark);
+      border-color: var(--blush-dark);
+      transform: translateY(-1px);
+    }
+    .preset-btn.active {
+      background: var(--blush);
+      color: var(--brown-dark);
+      border-color: var(--blush-dark);
+      box-shadow: 0 2px 8px var(--shadow);
+    }
+    .preset-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .preset-name { display: block; }
+    .preset-sub  { display: block; font-weight: 600; font-size: 0.68rem; opacity: 0.75; }
+
+    /* ── Mode toggle ── */
+    .mode-toggle {
+      display: flex;
+      background: var(--toggle-bg);
+      border-radius: 50px;
+      padding: 4px;
+      gap: 4px;
+      margin-bottom: 22px;
+      transition: background 0.4s;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 9px 0;
+      border: none;
+      border-radius: 46px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      background: transparent;
+      color: var(--toggle-inactive);
+    }
+    .mode-btn.active {
+      background: var(--card-bg);
+      color: var(--brown-dark);
+      box-shadow: 0 2px 10px var(--shadow);
+    }
+    .mode-btn.focus.active { background: var(--blush); color: var(--brown-dark); }
+    .mode-btn.break.active { background: var(--sage);  color: #1a4a30; }
+
+    /* ── Timer ring ── */
+    .timer-section {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .timer-ring-wrap {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 12px;
+    }
+    .timer-ring-wrap svg {
+      transform: rotate(-90deg);
+      position: absolute;
+      top: 0; left: 0;
+    }
+    #progress-ring {
+      transition: stroke-dashoffset 1s linear, stroke 0.4s;
+      stroke-linecap: round;
+    }
+    #ring-track { transition: stroke 0.4s; }
+    .timer-face {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #timer-display {
+      font-size: 3.4rem;
+      font-weight: 900;
+      color: var(--brown-dark);
+      line-height: 1;
+      letter-spacing: -1px;
+      transition: color 0.4s;
+    }
+    .timer-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--brown-light);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    /* ── Mood message ── */
+    #mood-msg {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--mood-color);
+      margin-bottom: 20px;
+      min-height: 1.4em;
+      transition: opacity 0.4s, color 0.4s;
+      padding: 0 10px;
+    }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 22px;
+    }
+    .ctrl-btn {
+      border: none;
+      border-radius: 18px;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 3px 10px var(--shadow);
+    }
+    .ctrl-btn:active { transform: scale(0.95); }
+
+    #btn-start {
+      background: var(--blush);
+      color: var(--brown-dark);
+      padding: 13px 30px;
+      font-size: 1rem;
+    }
+    #btn-start:hover { background: var(--blush-dark); color: white; }
+    #btn-start.running {
+      background: var(--sage);
+      color: #1a4a30;
+    }
+    #btn-start.running:hover { background: var(--sage-dark); color: white; }
+
+    #btn-reset {
+      background: var(--yellow);
+      color: var(--brown-dark);
+      padding: 13px 18px;
+      font-size: 1rem;
+      transition: all 0.18s ease, background 0.4s;
+    }
+    #btn-reset:hover { filter: brightness(0.92); }
+
+    /* ── Pomodoro counter ── */
+    .pomodoro-row {
+      border-top: 2px dashed rgba(200,149,108,0.2);
+      padding-top: 18px;
+      text-align: center;
+    }
+    .pomo-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .pomo-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--brown-light);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    #btn-reset-counter {
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      background: var(--toggle-bg);
+      border: 1.5px solid var(--card-border);
+      border-radius: 8px;
+      color: var(--toggle-inactive);
+      padding: 2px 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #btn-reset-counter:hover {
+      background: var(--blush);
+      color: var(--brown-dark);
+      border-color: var(--blush-dark);
+    }
+    .tomatoes {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .tomato {
+      font-size: 1.4rem;
+      filter: grayscale(1) opacity(0.3);
+      transition: all 0.4s ease;
+      transform: scale(0.85);
+    }
+    .tomato.done {
+      filter: none;
+      transform: scale(1);
+    }
+    .tomato.pop {
+      animation: tomato-pop 0.45s cubic-bezier(.36,1.8,.6,1) forwards;
+    }
+    @keyframes tomato-pop {
+      0%   { transform: scale(0.4); filter: none; }
+      60%  { transform: scale(1.35); }
+      100% { transform: scale(1); }
+    }
+    #pomo-count-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--brown);
+    }
+
+    /* ── Finish flash ── */
+    @keyframes finish-flash {
+      0%   { box-shadow: 0 8px 32px var(--shadow), 0 0 0 0 rgba(242,184,198,0.7); }
+      50%  { box-shadow: 0 8px 32px var(--shadow), 0 0 0 20px rgba(242,184,198,0); }
+      100% { box-shadow: 0 8px 32px var(--shadow), 0 0 0 0 rgba(242,184,198,0); }
+    }
+    .card.flash { animation: finish-flash 0.6s ease 3; }
+
+    @media (max-width: 480px) {
+      .card { padding: 24px 18px 28px; }
+      #timer-display { font-size: 2.9rem; }
+      .timer-ring-wrap { width: 180px; height: 180px; }
+      .preset-btn { font-size: 0.72rem; padding: 7px 8px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating decorations -->
+  <span class="deco">🍃</span>
+  <span class="deco">🌸</span>
+  <span class="deco">☕</span>
+  <span class="deco">🌿</span>
+  <span class="deco">🍵</span>
+  <span class="deco">🌷</span>
+  <span class="deco">🍂</span>
+
+  <!-- Dark mode toggle -->
+  <button id="dark-toggle" title="Toggle night café mode">🌙 Night Café</button>
+
+  <div class="card" id="card">
+
+    <div class="header">
+      <div class="cafe-title">☕ Mocha Café ☕</div>
+      <div class="app-name">Pomodoro Timer v2</div>
+    </div>
+
+    <!-- Bear character -->
+    <div class="character-wrap">
+      <div class="character-bubble" id="character">
+        🐻
+        <div class="speech-bubble" id="speech">Let's do this~ ☕</div>
+      </div>
+    </div>
+
+    <!-- Focus presets -->
+    <div class="presets" id="presets">
+      <button class="preset-btn active" data-preset="classic" onclick="applyPreset('classic')">
+        <span class="preset-name">🍅 25/5 Classic</span>
+        <span class="preset-sub">Focus 25 · Break 5</span>
+      </button>
+      <button class="preset-btn" data-preset="deep" onclick="applyPreset('deep')">
+        <span class="preset-name">🧠 45/10 Deep Focus</span>
+        <span class="preset-sub">Focus 45 · Break 10</span>
+      </button>
+      <button class="preset-btn" data-preset="cozy" onclick="applyPreset('cozy')">
+        <span class="preset-name">🌱 15/5 Cozy Focus</span>
+        <span class="preset-sub">Focus 15 · Break 5</span>
+      </button>
+      <button class="preset-btn" data-preset="tiny" onclick="applyPreset('tiny')">
+        <span class="preset-name">⚡ 10/2 Tiny Task</span>
+        <span class="preset-sub">Focus 10 · Break 2</span>
+      </button>
+    </div>
+
+    <!-- Mode toggle -->
+    <div class="mode-toggle">
+      <button class="mode-btn focus active" id="btn-focus" onclick="setMode('focus')">🍅 Focus</button>
+      <button class="mode-btn break"        id="btn-break" onclick="setMode('break')">🌿 Break</button>
+    </div>
+
+    <!-- Timer ring -->
+    <div class="timer-section">
+      <div class="timer-ring-wrap">
+        <svg width="200" height="200" viewBox="0 0 200 200">
+          <circle id="ring-track" cx="100" cy="100" r="85"
+            fill="none" stroke="#f0e8df" stroke-width="10"/>
+          <circle id="progress-ring" cx="100" cy="100" r="85"
+            fill="none" stroke="#f2b8c6" stroke-width="10"
+            stroke-dasharray="534" stroke-dashoffset="0"/>
+        </svg>
+        <div class="timer-face">
+          <div id="timer-display">25:00</div>
+          <div class="timer-label" id="timer-label">Focus</div>
+        </div>
+      </div>
+      <div id="mood-msg">Ready to brew some focus? ☕</div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="controls">
+      <button class="ctrl-btn" id="btn-start" onclick="toggleTimer()">▶ Start</button>
+      <button class="ctrl-btn" id="btn-reset" onclick="resetTimer()">↺ Reset</button>
+    </div>
+
+    <!-- Pomodoro counter -->
+    <div class="pomodoro-row">
+      <div class="pomo-header">
+        <div class="pomo-title">Completed Pomodoros</div>
+        <button id="btn-reset-counter" onclick="resetCounter()">reset</button>
+      </div>
+      <div class="tomatoes" id="tomatoes"></div>
+      <div id="pomo-count-label">0 pomodoros today</div>
+    </div>
+
+  </div>
+
+  <script>
+    // ── Presets ──
+    const PRESETS = {
+      classic: { focus: 25, break: 5 },
+      deep:    { focus: 45, break: 10 },
+      cozy:    { focus: 15, break: 5 },
+      tiny:    { focus: 10, break: 2 },
+    };
+    let activePreset = 'classic';
+
+    // ── Mode durations (driven by preset) ──
+    const MODES = {
+      focus: { label: 'Focus', ring: '#f2b8c6' },
+      break: { label: 'Break', ring: '#a8c5a0' },
+    };
+
+    function getModeDuration(m) {
+      return (m === 'focus' ? PRESETS[activePreset].focus : PRESETS[activePreset].break) * 60;
+    }
+
+    const FOCUS_MSGS = [
+      'Ready to brew some focus? ☕',
+      'You got this, little barista! 🌟',
+      'Deep work mode: activated ✨',
+      'One task at a time, cutie! 🍵',
+      'Your future self thanks you 🐻',
+      'Sip by sip, step by step! ☕',
+    ];
+    const BREAK_MSGS = [
+      'Time to rest your paws! 🐾',
+      'Stretch and breathe, you earned it! 🌿',
+      'Grab a cozy snack, friend! 🍪',
+      'The garden misses you! 🌸',
+      'Recharge like a leaf in the sun 🌱',
+      'A little break makes a big day! 🌈',
+    ];
+
+    let mode      = 'focus';
+    let totalSecs = getModeDuration('focus');
+    let remaining = totalSecs;
+    let running   = false;
+    let interval  = null;
+    let pomoCount = parseInt(localStorage.getItem('mocha-pomo-count') || '0', 10);
+    const RING_CIRC = 2 * Math.PI * 85; // ≈ 534
+
+    // ── DOM refs ──
+    const displayEl  = document.getElementById('timer-display');
+    const labelEl    = document.getElementById('timer-label');
+    const moodEl     = document.getElementById('mood-msg');
+    const ring       = document.getElementById('progress-ring');
+    const ringTrack  = document.getElementById('ring-track');
+    const btnStart   = document.getElementById('btn-start');
+    const tomatoWrap = document.getElementById('tomatoes');
+    const pomoLabel  = document.getElementById('pomo-count-label');
+    const speech     = document.getElementById('speech');
+    const card       = document.getElementById('card');
+    const darkToggle = document.getElementById('dark-toggle');
+    const presetsEl  = document.getElementById('presets');
+
+    // ── Init ring ──
+    ring.style.strokeDasharray  = RING_CIRC;
+    ring.style.strokeDashoffset = 0;
+
+    // ── Dark mode ──
+    const savedDark = localStorage.getItem('mocha-dark') === 'true';
+    if (savedDark) enableDark();
+
+    function enableDark() {
+      document.body.classList.add('dark');
+      darkToggle.textContent = '☀️';
+      // Update ring track stroke for dark
+      ringTrack.style.stroke = '#0f3460';
+    }
+    function disableDark() {
+      document.body.classList.remove('dark');
+      darkToggle.textContent = '🌙';
+      ringTrack.style.stroke = '#f0e8df';
+    }
+
+    darkToggle.addEventListener('click', () => {
+      const isDark = document.body.classList.contains('dark');
+      if (isDark) { disableDark(); localStorage.setItem('mocha-dark', 'false'); darkToggle.textContent = '🌙 Night Café'; }
+      else        { enableDark();  localStorage.setItem('mocha-dark', 'true');  darkToggle.textContent = '☀️ Day Café'; }
+    });
+
+    // ── Web Audio chime ──
+    function playChime() {
+      try {
+        const ctx   = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((freq, i) => {
+          const osc  = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+          const t = ctx.currentTime + i * 0.22;
+          gain.gain.setValueAtTime(0, t);
+          gain.gain.linearRampToValueAtTime(0.18, t + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
+          osc.start(t);
+          osc.stop(t + 0.7);
+        });
+      } catch(e) {}
+    }
+
+    // ── Helpers ──
+    function fmt(s) {
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    }
+
+    function updateRing() {
+      const pct    = remaining / totalSecs;
+      const offset = RING_CIRC * (1 - pct);
+      ring.style.strokeDashoffset = offset;
+    }
+
+    function pickMsg(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function setMoodMsg(override) {
+      moodEl.style.opacity = 0;
+      setTimeout(() => {
+        if (override) {
+          moodEl.textContent = override;
+        } else {
+          moodEl.textContent = running
+            ? pickMsg(mode === 'focus' ? FOCUS_MSGS : BREAK_MSGS)
+            : (mode === 'focus' ? 'Ready to brew some focus? ☕' : 'Time to rest your paws! 🐾');
+        }
+        moodEl.style.opacity = 1;
+      }, 220);
+    }
+
+    // ── Speech bubble ──
+    let speechTimer = null;
+    function showSpeech(msg) {
+      speech.textContent = msg;
+      speech.classList.add('show');
+      if (speechTimer) clearTimeout(speechTimer);
+      speechTimer = setTimeout(hideSpeech, 3800);
+    }
+    function hideSpeech() {
+      speech.classList.remove('show');
+    }
+
+    // ── Tomato counter ──
+    function buildTomatoes() {
+      tomatoWrap.innerHTML = '';
+      const show = Math.max(pomoCount + 1, 4);
+      for (let i = 0; i < show; i++) {
+        const t = document.createElement('span');
+        t.className = 'tomato' + (i < pomoCount ? ' done' : '');
+        t.textContent = '🍅';
+        tomatoWrap.appendChild(t);
+      }
+      pomoLabel.textContent = `${pomoCount} pomodoro${pomoCount !== 1 ? 's' : ''} today`;
+    }
+
+    function addPomodoro() {
+      pomoCount++;
+      localStorage.setItem('mocha-pomo-count', pomoCount);
+      buildTomatoes();
+      const done = tomatoWrap.querySelectorAll('.tomato.done');
+      const last = done[done.length - 1];
+      if (last) {
+        last.classList.add('pop');
+        last.addEventListener('animationend', () => last.classList.remove('pop'), { once: true });
+      }
+    }
+
+    function resetCounter() {
+      if (confirm('Reset your pomodoro count to 0?')) {
+        pomoCount = 0;
+        localStorage.setItem('mocha-pomo-count', 0);
+        buildTomatoes();
+      }
+    }
+
+    // ── Presets ──
+    function applyPreset(key) {
+      if (running) return; // only when not running
+      activePreset = key;
+      // Update active button
+      document.querySelectorAll('.preset-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.preset === key);
+      });
+      // Re-apply current mode with new duration
+      totalSecs = getModeDuration(mode);
+      remaining = totalSecs;
+      displayEl.textContent = fmt(remaining);
+      updateRing();
+    }
+
+    // ── Disable/enable preset buttons while running ──
+    function setPresetBtnsDisabled(disabled) {
+      document.querySelectorAll('.preset-btn').forEach(b => b.disabled = disabled);
+    }
+
+    // ── Core ──
+    function tick() {
+      if (remaining <= 0) {
+        clearInterval(interval);
+        running = false;
+        btnStart.textContent = '▶ Start';
+        btnStart.classList.remove('running');
+        setPresetBtnsDisabled(false);
+
+        if (mode === 'focus') {
+          addPomodoro();
+          showSpeech('Yay! Break time~ 🎉');
+        } else {
+          showSpeech('Ready to focus again? 🍅');
+        }
+        playChime();
+        card.classList.add('flash');
+        card.addEventListener('animationend', () => card.classList.remove('flash'), { once: true });
+        setMoodMsg();
+        return;
+      }
+      remaining--;
+      displayEl.textContent = fmt(remaining);
+      updateRing();
+    }
+
+    function toggleTimer() {
+      if (running) {
+        clearInterval(interval);
+        running = false;
+        btnStart.innerHTML = '▶ Start';
+        btnStart.classList.remove('running');
+        setPresetBtnsDisabled(false);
+        showSpeech('Taking a lil break? (˶ᵔ ᵕ ᵔ˶)');
+      } else {
+        running = true;
+        interval = setInterval(tick, 1000);
+        btnStart.innerHTML = '⏸ Pause';
+        btnStart.classList.add('running');
+        setPresetBtnsDisabled(true);
+        showSpeech("Let's do this~ ☕");
+      }
+      setMoodMsg();
+    }
+
+    function resetTimer() {
+      clearInterval(interval);
+      running   = false;
+      totalSecs = getModeDuration(mode);
+      remaining = totalSecs;
+      displayEl.textContent = fmt(remaining);
+      updateRing();
+      btnStart.innerHTML = '▶ Start';
+      btnStart.classList.remove('running');
+      setPresetBtnsDisabled(false);
+      showSpeech('Okay, fresh start! 🌸');
+      setMoodMsg();
+    }
+
+    function setMode(m) {
+      if (running) { clearInterval(interval); running = false; setPresetBtnsDisabled(false); }
+      mode      = m;
+      totalSecs = getModeDuration(m);
+      remaining = totalSecs;
+
+      ring.style.stroke = MODES[m].ring;
+      labelEl.textContent = MODES[m].label;
+      displayEl.textContent = fmt(remaining);
+      updateRing();
+
+      document.getElementById('btn-focus').classList.toggle('active', m === 'focus');
+      document.getElementById('btn-break').classList.toggle('active', m === 'break');
+      btnStart.innerHTML = '▶ Start';
+      btnStart.classList.remove('running');
+
+      hideSpeech();
+      setMoodMsg();
+    }
+
+    // ── Boot ──
+    buildTomatoes();
+    setMoodMsg();
+  </script>
+</body>
+</html>
